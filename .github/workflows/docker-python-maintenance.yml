@@ -16,14 +16,15 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Update Docker Python versions
+      - name: Restore completed updater result
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/run_docker_update.py
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 42512709469 --repo mohanad-hafez/ezsnmp-maintenance-checks --name docker-maintenance --dir .
       - name: Publish changes if needed
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
@@ -34,7 +35,7 @@ jobs:
             const receipt={status:result.status==='noop'?'noop':'delivery_started'};
             const save=()=>fs.writeFileSync('docker-publication.json',JSON.stringify(receipt,null,2));save();
             if(result.status==='noop')return;
-            if(!result.changes.length||result.changes.some(c=>!/^docker//.test(c.path)))throw Error('Unexpected native change paths');
+            if(!result.changes.length||result.changes.some(c=>!c.path.startsWith('docker/')))throw Error('Unexpected native change paths');
             try{
               const parent=await github.rest.git.getCommit({...context.repo,commit_sha:context.sha});
               const tree=await github.rest.git.createTree({...context.repo,base_tree:parent.data.tree.sha,tree:result.changes.map(c=>({path:c.path,mode:'100644',type:'blob',content:c.content}))});
